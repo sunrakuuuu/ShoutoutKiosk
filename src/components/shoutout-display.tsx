@@ -13,6 +13,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from '@/components/ui/carousel';
+import { cn } from '@/lib/utils';
 
 type ShoutoutDisplayProps = {
   shoutouts: Shoutout[];
@@ -31,23 +32,30 @@ export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisp
     }
 
     setCount(api.scrollSnapList().length);
-    setCurrent(api.selectedScrollSnap() + 1);
+    setCurrent(api.selectedScrollSnap());
 
-    api.on('select', () => {
-      setCurrent(api.selectedScrollSnap() + 1);
-    });
-    
-    api.on('reInit', () => {
-        setCount(api.scrollSnapList().length);
-        setCurrent(api.selectedScrollSnap() + 1);
-    });
+    const onSelect = () => {
+      setCurrent(api.selectedScrollSnap());
+    };
 
+    const onReinit = () => {
+      setCount(api.scrollSnapList().length);
+      setCurrent(api.selectedScrollSnap());
+    }
+
+    api.on('select', onSelect);
+    api.on('reInit', onReinit);
+
+    return () => {
+      api.off('select', onSelect);
+      api.off('reInit', onReinit);
+    }
   }, [api]);
 
   if (!initialized) {
     return (
       <div className="w-full max-w-lg mx-auto">
-         <h2 className="text-2xl font-headline font-semibold mb-4 text-center">Live Feed</h2>
+        <h2 className="text-2xl font-headline font-semibold mb-4 text-center">Live Feed</h2>
         <Skeleton className="h-64 w-full" />
       </div>
     );
@@ -61,31 +69,37 @@ export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisp
           <Carousel
             setApi={setApi}
             opts={{
+              align: 'center',
               loop: sortedShoutouts.length > 1,
             }}
-            className="w-full max-w-lg"
+            className="w-full"
           >
             <CarouselContent>
-              {sortedShoutouts.map((shoutout) => {
+              {sortedShoutouts.map((shoutout, index) => {
+                const isActive = index === current;
                 const frame = frames.find((f) => f.id === shoutout.frame);
                 return (
-                  <CarouselItem key={shoutout.id}>
-                    <div className="p-1">
-                      <ShoutoutCard shoutout={shoutout} frame={frame} />
+                  <CarouselItem key={shoutout.id} className="md:basis-1/2 lg:basis-1/3">
+                    <div className={cn("p-1 transition-all duration-300", isActive ? "scale-100" : "scale-75 opacity-50")}>
+                      <ShoutoutCard 
+                        shoutout={shoutout} 
+                        frame={frame}
+                        isFeatured={isActive}
+                      />
                     </div>
                   </CarouselItem>
                 );
               })}
             </CarouselContent>
             {sortedShoutouts.length > 1 && (
-                <>
-                    <CarouselPrevious />
-                    <CarouselNext />
-                </>
+              <>
+                <CarouselPrevious />
+                <CarouselNext />
+              </>
             )}
           </Carousel>
-           <div className="py-2 text-center text-sm text-muted-foreground">
-            {count > 0 && `Shoutout ${current} of ${count}`}
+          <div className="py-2 text-center text-sm text-muted-foreground">
+            {count > 0 && `Shoutout ${current + 1} of ${count}`}
           </div>
         </div>
       ) : (

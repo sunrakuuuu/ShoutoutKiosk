@@ -10,9 +10,10 @@ type ShoutoutCardProps = {
   frame: ShoutoutFrame | undefined;
   onDelete?: (id: string) => void;
   showActions?: boolean;
+  isFeatured?: boolean;
 };
 
-export default function ShoutoutCard({ shoutout, frame, onDelete, showActions = false }: ShoutoutCardProps) {
+export default function ShoutoutCard({ shoutout, frame, onDelete, showActions = false, isFeatured = false }: ShoutoutCardProps) {
   const timeAgo = (timestamp: number) => {
     const seconds = Math.floor((new Date().getTime() - timestamp) / 1000);
     if (seconds < 5) return "just now";
@@ -30,7 +31,7 @@ export default function ShoutoutCard({ shoutout, frame, onDelete, showActions = 
   };
 
   return (
-    <Card className={cn('overflow-hidden', frame?.className)}>
+    <Card className={cn(frame?.className)}>
       <CardContent className="p-4">
         <div className="flex flex-col gap-4">
           {shoutout.image && (
@@ -44,7 +45,7 @@ export default function ShoutoutCard({ shoutout, frame, onDelete, showActions = 
               />
             </div>
           )}
-          <p className="text-foreground/90 leading-relaxed font-body">{shoutout.message}</p>
+          <p className={cn("text-foreground/90 leading-relaxed font-body", isFeatured ? "text-xl text-center" : "")}>{shoutout.message}</p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t border-t-white/10">
             <Clock className="w-3 h-3" />
             <span>{timeAgo(shoutout.createdAt)}</span>

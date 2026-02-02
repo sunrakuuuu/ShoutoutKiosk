@@ -69,7 +69,7 @@
 
 @layer components {
   .frame-code {
-    @apply border-2 border-primary/50 relative p-1;
+    @apply border-2 border-primary/50 relative;
   }
   .frame-code::after {
     content: '}';
@@ -94,11 +94,9 @@
 
   .frame-heart {
     @apply border-2 border-transparent relative;
-    background: 
-      linear-gradient(to right, hsl(var(--background)), hsl(var(--background))), 
-      linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent)));
-    background-clip: padding-box, border-box;
-    background-origin: padding-box, border-box;
+    background:
+      linear-gradient(hsl(var(--card)), hsl(var(--card))) padding-box,
+      linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent))) border-box;
   }
   
   .frame-circuit {
