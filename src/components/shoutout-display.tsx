@@ -80,7 +80,7 @@ export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisp
       )}
 
       {sortedShoutouts.length > 1 && (
-         <Button onClick={handleNext} className="absolute bottom-6 right-4 md:bottom-10 md:right-10 rounded-md h-12 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wider text-sm">
+         <Button onClick={handleNext} className="absolute bottom-6 md:bottom-10 left-1/2 -translate-x-1/2 rounded-md h-12 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wider text-sm">
             Next Shout-Out <ArrowRight className="ml-2 h-5 w-5"/>
          </Button>
       )}
