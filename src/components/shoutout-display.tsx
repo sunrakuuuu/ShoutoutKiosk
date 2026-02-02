@@ -111,7 +111,7 @@ export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisp
 
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col items-center binary-rain px-4 pt-12 pb-12 md:px-12 overflow-hidden">
+    <div className="relative min-h-screen w-full flex flex-col items-center binary-rain px-4 pt-6 pb-12 md:px-12 overflow-hidden">
       <AnimatePresence mode="wait">
         <motion.div 
             key={currentIndex}
