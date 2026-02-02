@@ -31,7 +31,7 @@ const MainShoutoutCard = ({ shoutout, frame }: { shoutout: Shoutout; frame: Shou
             <p className="text-white text-3xl font-bold font-mono text-primary">To: {shoutout.recipient}</p>
           </div>
           <div className="mt-4 p-4 border-l-4 border-primary bg-primary/10">
-            <p className="text-white text-xl font-mono leading-relaxed italic">
+            <p className="text-white text-3xl font-mono leading-snug italic">
               "{shoutout.message}"
             </p>
           </div>
