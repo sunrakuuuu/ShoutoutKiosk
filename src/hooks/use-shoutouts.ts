@@ -13,6 +13,7 @@ export function useShoutouts() {
 
   const getShoutoutsFromStorage = useCallback((): Shoutout[] => {
     try {
+      if (typeof window === 'undefined') return [];
       const item = window.localStorage.getItem(SHOUTOUTS_KEY);
       return item ? JSON.parse(item) : [];
     } catch (error) {
@@ -24,53 +25,53 @@ export function useShoutouts() {
   const saveShoutoutsToStorage = useCallback((shoutoutsToSave: Shoutout[]) => {
     try {
       window.localStorage.setItem(SHOUTOUTS_KEY, JSON.stringify(shoutoutsToSave));
-      // Dispatch a custom event to notify other tabs/windows
-      window.dispatchEvent(new Event('storage'));
     } catch (error) {
       console.error('Failed to save shoutouts to localStorage', error);
     }
   }, []);
-
-  const purgeExpiredShoutouts = useCallback(() => {
+  
+  useEffect(() => {
+    // Initial load from storage
     const allShoutouts = getShoutoutsFromStorage();
     const now = Date.now();
     const validShoutouts = allShoutouts.filter(s => (now - s.createdAt) < TTL);
-    
-    if (validShoutouts.length < allShoutouts.length) {
-      saveShoutoutsToStorage(validShoutouts);
-      setShoutouts(validShoutouts);
-      toast({
-        title: "Feed Cleaned",
-        description: "Some old shoutouts have been cleared.",
-      });
-    }
-  }, [getShoutoutsFromStorage, saveShoutoutsToStorage, toast]);
-
-  useEffect(() => {
-    const currentShoutouts = getShoutoutsFromStorage();
-    const now = Date.now();
-    const validShoutouts = currentShoutouts.filter(s => (now - s.createdAt) < TTL);
-    
     setShoutouts(validShoutouts);
-    if(validShoutouts.length < currentShoutouts.length){
-        saveShoutoutsToStorage(validShoutouts);
-    }
     setInitialized(true);
     
-    // Set up a periodic check to purge expired shoutouts
-    const intervalId = setInterval(purgeExpiredShoutouts, 60 * 1000); // Check every minute
+    if(validShoutouts.length < allShoutouts.length){
+        saveShoutoutsToStorage(validShoutouts);
+    }
 
-    // Listen for storage changes from other tabs
-    const handleStorageChange = () => {
-        setShoutouts(getShoutoutsFromStorage());
+    // Listener for other tabs
+    const handleStorageChange = (event: StorageEvent) => {
+        if (event.key === SHOUTOUTS_KEY) {
+            setShoutouts(getShoutoutsFromStorage());
+        }
     };
     window.addEventListener('storage', handleStorageChange);
 
-    return () => {
-      clearInterval(intervalId);
-      window.removeEventListener('storage', handleStorageChange);
+    // Periodic purge
+    const purgeExpiredShoutouts = () => {
+        const currentShoutouts = getShoutoutsFromStorage();
+        const now = Date.now();
+        const validShoutouts = currentShoutouts.filter(s => (now - s.createdAt) < TTL);
+        
+        if (validShoutouts.length < currentShoutouts.length) {
+          saveShoutoutsToStorage(validShoutouts);
+          setShoutouts(validShoutouts); // Update current tab's state
+          toast({
+            title: "Feed Cleaned",
+            description: "Some old shoutouts have been cleared.",
+          });
+        }
     };
-  }, [getShoutoutsFromStorage, saveShoutoutsToStorage, purgeExpiredShoutouts]);
+    const intervalId = setInterval(purgeExpiredShoutouts, 60 * 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(intervalId);
+    };
+  }, [getShoutoutsFromStorage, saveShoutoutsToStorage, toast]);
   
   const addShoutout = useCallback((newShoutoutData: Omit<Shoutout, 'id' | 'createdAt'>) => {
     const newShoutout: Shoutout = {
@@ -79,12 +80,22 @@ export function useShoutouts() {
       createdAt: Date.now(),
     };
 
-    setShoutouts(prevShoutouts => {
-      const updatedShoutouts = [newShoutout, ...prevShoutouts];
-      saveShoutoutsToStorage(updatedShoutouts);
-      return updatedShoutouts;
-    });
-  }, [saveShoutoutsToStorage]);
+    const currentShoutouts = getShoutoutsFromStorage();
+    const updatedShoutouts = [newShoutout, ...currentShoutouts];
+    saveShoutoutsToStorage(updatedShoutouts);
+    setShoutouts(updatedShoutouts); // Update state for current tab immediately
+  }, [getShoutoutsFromStorage, saveShoutoutsToStorage]);
 
-  return { shoutouts, addShoutout, initialized };
+  const deleteShoutout = useCallback((shoutoutId: string) => {
+    const currentShoutouts = getShoutoutsFromStorage();
+    const updatedShoutouts = currentShoutouts.filter(s => s.id !== shoutoutId);
+    saveShoutoutsToStorage(updatedShoutouts);
+    setShoutouts(updatedShoutouts); // Update state for current tab immediately
+     toast({
+        title: "Shoutout Deleted",
+        description: "The shoutout has been removed.",
+      });
+  }, [getShoutoutsFromStorage, saveShoutoutsToStorage, toast]);
+
+  return { shoutouts, addShoutout, deleteShoutout, initialized };
 }
