@@ -27,7 +27,7 @@ export default function CreatePage() {
                     <Skeleton className="h-24 w-full" />
                 </div>
             ) : sortedShoutouts.length > 0 ? (
-                <div className="space-y-6 max-h-[75vh] overflow-y-auto pr-2">
+                <div className="space-y-6 max-h-[75vh] overflow-y-auto no-scrollbar">
                 {sortedShoutouts.map((shoutout) => {
                     const frame = frames.find((f) => f.id === shoutout.frame);
                     return <ShoutoutCard key={shoutout.id} shoutout={shoutout} frame={frame} onDelete={deleteShoutout} showActions={true} />;
