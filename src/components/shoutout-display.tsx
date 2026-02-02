@@ -50,7 +50,7 @@ export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisp
   const nextShoutout = sortedShoutouts.length > 1 ? sortedShoutouts[(currentIndex + 1) % sortedShoutouts.length] : null;
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center relative font-code p-4 pb-24">
+    <div className="w-full h-full flex flex-col items-center justify-center relative font-code p-4 pb-32">
       <div className="absolute top-4 md:top-10 text-center">
         <h2 className="text-primary uppercase tracking-[0.2em] text-sm">Currently Streaming</h2>
         <div className="w-24 h-px bg-primary/50 mx-auto mt-2"></div>
@@ -70,20 +70,21 @@ export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisp
         </AnimatePresence>
       </div>
       
-      {nextShoutout && (
-        <div className="absolute bottom-28 right-4 md:right-10 w-48 md:w-64 hidden md:block">
-           <h3 className="text-primary/70 uppercase tracking-[0.2em] text-xs mb-2">Up Next</h3>
-           <div className="opacity-50">
-             <ShoutoutNextCard shoutout={nextShoutout} />
-           </div>
-        </div>
-      )}
-
-      {sortedShoutouts.length > 1 && (
-         <Button onClick={handleNext} className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-md h-12 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wider text-sm">
-            Next Shout-Out <ArrowRight className="ml-2 h-5 w-5"/>
-         </Button>
-      )}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-end gap-8">
+        {sortedShoutouts.length > 1 && (
+            <Button onClick={handleNext} className="rounded-md h-12 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wider text-sm flex-shrink-0">
+                Next Shout-Out <ArrowRight className="ml-2 h-5 w-5"/>
+            </Button>
+        )}
+        {nextShoutout && (
+            <div className="w-48 md:w-64 hidden md:block">
+            <h3 className="text-primary/70 uppercase tracking-[0.2em] text-xs mb-2">Up Next</h3>
+            <div className="opacity-50">
+                <ShoutoutNextCard shoutout={nextShoutout} />
+            </div>
+            </div>
+        )}
+      </div>
     </div>
   );
 }
