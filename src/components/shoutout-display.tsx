@@ -1,17 +1,19 @@
 'use client';
 import * as React from 'react';
-import { Shoutout } from '@/lib/types';
+import { Shoutout, ShoutoutFrame } from '@/lib/types';
 import { motion } from 'framer-motion';
+import { frames } from '@/lib/frames';
+import { cn } from '@/lib/utils';
 
 type ShoutoutDisplayProps = {
   shoutouts: Shoutout[];
   initialized: boolean;
 };
 
-const MainShoutoutCard = ({ shoutout }: { shoutout: Shoutout }) => {
+const MainShoutoutCard = ({ shoutout, frame }: { shoutout: Shoutout; frame: ShoutoutFrame | undefined }) => {
   const imageUrl = shoutout.image || "https://lh3.googleusercontent.com/aida-public/AB6AXuCZCAL9woq7nJGc8C4QG3Td0rcexod38wbfCj8bpe_X1w-P52NufLP5z0DzS2WqoKJBpYgnJWvYGoSf6d3jwqAIhT5MRnILvF1YHRJO3N1eN-TyNY4jgLE8awVBX7PuRiDNFsiHjhSa_hU1VzVIx6nqGrIPpjIG1WwoBRJ4BEn0cmPuvb02SArHWfZ9nuurDWUGJABPLs7MFnT5bVR0chL5BzNMhV-oI0hM1-QuSjIgraV3glFeHZAlxa4zyV8h3H0oUkhVTxKWWX_x";
   return (
-    <div className="circuit-heart-frame bg-black/40 backdrop-blur-md rounded-xl p-8 transition-all duration-700">
+    <div className={cn(frame?.className, "bg-black/40 backdrop-blur-md rounded-xl p-8 transition-all duration-700")}>
       <div className="flex flex-col md:flex-row gap-8 items-center">
         <div 
           className="w-full md:w-1/2 aspect-square bg-center bg-no-repeat bg-cover rounded-lg border-2 border-primary/30"
@@ -103,6 +105,7 @@ export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisp
   }
   
   const currentShoutout = sortedShoutouts[currentIndex];
+  const currentFrame = frames.find((f) => f.id === currentShoutout?.frame);
   const nextShoutout = sortedShoutouts.length > 1 ? sortedShoutouts[(currentIndex + 1) % sortedShoutouts.length] : null;
   const afterNextShoutout = sortedShoutouts.length > 2 ? sortedShoutouts[(currentIndex + 2) % sortedShoutouts.length] : null;
 
@@ -121,7 +124,7 @@ export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisp
                     <h4 className="text-primary text-sm font-bold leading-normal tracking-[0.2em] px-4 py-2 text-center uppercase">Currently Streaming</h4>
                     <div className="h-1 w-24 bg-primary rounded-full blur-[1px]"></div>
                 </div>
-                {currentShoutout && <MainShoutoutCard shoutout={currentShoutout} />}
+                {currentShoutout && <MainShoutoutCard shoutout={currentShoutout} frame={currentFrame} />}
             </div>
 
             {nextShoutout && (

@@ -70,10 +70,10 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
   };
 
   const clearImage = () => {
-      setImagePreview(null);
-      setImageBase64(null);
-      const fileInput = document.getElementById('shoutout-image') as HTMLInputElement;
-      if(fileInput) fileInput.value = '';
+    setImagePreview(null);
+    setImageBase64(null);
+    const fileInput = document.getElementById('shoutout-image') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
   }
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -141,7 +141,7 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
                 )}
               />
             </div>
-            
+
             <FormField
               control={form.control}
               name="message"
@@ -163,16 +163,21 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
               </FormControl>
               {imagePreview && (
                 <div className="relative mt-4 w-full h-48 rounded-md overflow-hidden border">
-                    <Image src={imagePreview} alt="Image preview" layout="fill" objectFit="cover" />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2 h-8 w-8 rounded-full"
-                      onClick={clearImage}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                  <Image
+                    src={imagePreview}
+                    alt="Image preview"
+                    fill
+                    className="object-cover"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8 rounded-full"
+                    onClick={clearImage}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               )}
             </FormItem>
@@ -195,7 +200,7 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
                             <RadioGroupItem value={frame.id} className="sr-only" />
                           </FormControl>
                           <FormLabel className={cn('frame-radio', frame.className)}>
-                             {frameIcons[frame.id]}
+                            {frameIcons[frame.id]}
                           </FormLabel>
                         </FormItem>
                       ))}
@@ -205,7 +210,7 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
                 </FormItem>
               )}
             />
-            
+
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? 'Sending...' : 'Send Shoutout'}
               <Send className="ml-2 h-4 w-4" />
