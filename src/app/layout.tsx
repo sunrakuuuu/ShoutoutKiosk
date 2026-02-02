@@ -1,6 +1,7 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
   title: 'CCS Valentine Shoutout',
@@ -21,8 +22,13 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
       </head>
       <body className="font-display bg-background text-foreground selection:bg-primary selection:text-white antialiased">
-          {children}
-          <Toaster />
+          <ThemeProvider
+            defaultTheme="dark"
+            storageKey="shoutout-theme"
+          >
+            {children}
+            <Toaster />
+          </ThemeProvider>
       </body>
     </html>
   );
