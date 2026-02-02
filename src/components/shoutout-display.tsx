@@ -71,7 +71,7 @@ export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisp
       </div>
       
       {nextShoutout && (
-        <div className="absolute top-1/2 -translate-y-[60%] right-4 lg:right-10 xl:right-20 w-48 md:w-64 hidden md:block">
+        <div className="absolute bottom-28 right-4 md:right-10 w-48 md:w-64 hidden md:block">
            <h3 className="text-primary/70 uppercase tracking-[0.2em] text-xs mb-2">Up Next</h3>
            <div className="opacity-50">
              <ShoutoutNextCard shoutout={nextShoutout} />
@@ -80,7 +80,7 @@ export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisp
       )}
 
       {sortedShoutouts.length > 1 && (
-         <Button onClick={handleNext} className="absolute bottom-6 right-6 md:bottom-10 md:right-10 rounded-md h-12 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wider text-sm">
+         <Button onClick={handleNext} className="absolute bottom-6 right-4 md:bottom-10 md:right-10 rounded-md h-12 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wider text-sm">
             Next Shout-Out <ArrowRight className="ml-2 h-5 w-5"/>
          </Button>
       )}
