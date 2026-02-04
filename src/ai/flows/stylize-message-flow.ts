@@ -10,7 +10,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const StylizeMessageInputSchema = z.object({
+const StylizeMessageInputSchema = z.object({
   message: z.string().describe('The original message to be stylized.'),
   style: z.enum(['poetic', 'witty']).describe('The style to apply to the message.'),
 });
