@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -13,9 +13,10 @@ import { frames } from '@/lib/frames';
 import { Shoutout } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
-import { Heart, Code, CircuitBoard, Send, ImagePlus, X, WandSparkles } from 'lucide-react';
+import { Camera, Heart, Code, CircuitBoard, Send, ImagePlus, X, WandSparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { stylizeMessage } from '@/ai/flows/stylize-message-flow';
+import { extractTextFromImage } from '@/ai/flows/extract-text-from-image-flow';
 
 const formSchema = z.object({
   sender: z.string().min(1, 'Sender name is required.'),
@@ -39,6 +40,8 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiLoading, setAiLoading] = useState<string | null>(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const ocrInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -113,6 +116,58 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
     }
   };
 
+  const handleOcrScan = () => {
+    ocrInputRef.current?.click();
+  };
+
+  const handleOcrImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 4 * 1024 * 1024) { // 4MB limit for Gemini
+        toast({
+          title: 'Image too large',
+          description: 'Please use an image smaller than 4MB for scanning.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      setOcrLoading(true);
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const imageDataUri = reader.result as string;
+          const result = await extractTextFromImage({ imageDataUri });
+          if (result?.extractedText) {
+            const currentMessage = form.getValues('message');
+            const newMessage = currentMessage ? `${currentMessage}\n${result.extractedText}` : result.extractedText;
+            form.setValue('message', newMessage, { shouldValidate: true });
+            toast({
+                title: 'Text Scanned!',
+                description: 'The message from your note has been added.',
+            });
+          } else {
+              toast({
+                title: 'No Text Found',
+                description: 'The AI could not find any text in the image.',
+              });
+          }
+        } catch (error) {
+          console.error('Failed to scan message:', error);
+          toast({
+            title: 'Scan Error',
+            description: 'The AI failed to scan your note. Please try again.',
+            variant: 'destructive',
+          });
+        } finally {
+          setOcrLoading(false);
+          // Reset file input value
+          if (e.target) e.target.value = '';
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     try {
@@ -184,9 +239,22 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
               name="message"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Your Message</FormLabel>
+                  <div className="flex justify-between items-center">
+                    <FormLabel>Your Message</FormLabel>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleOcrScan}
+                        disabled={ocrLoading}
+                        className="text-xs"
+                    >
+                        {ocrLoading ? 'Scanning...' : 'Scan from Note'}
+                        <Camera className="ml-2 h-3 w-3" />
+                    </Button>
+                  </div>
                   <FormControl>
-                    <Textarea placeholder="Type your Valentine's message here..." {...field} />
+                    <Textarea placeholder="Type your Valentine's message here, or scan it from a note!" {...field} />
                   </FormControl>
                   <div className="flex items-center justify-end gap-2 pt-1">
                     <Button 
@@ -194,7 +262,7 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
                         variant="ghost" 
                         size="sm" 
                         onClick={() => handleStylize('poetic')}
-                        disabled={!!aiLoading}
+                        disabled={!!aiLoading || ocrLoading}
                         className="text-xs"
                     >
                         {aiLoading === 'poetic' ? 'Stylizing...' : 'Make it Poetic'}
@@ -205,7 +273,7 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
                         variant="ghost" 
                         size="sm" 
                         onClick={() => handleStylize('witty')}
-                        disabled={!!aiLoading}
+                        disabled={!!aiLoading || ocrLoading}
                         className="text-xs"
                     >
                         {aiLoading === 'witty' ? 'Stylizing...' : 'Make it Witty'}
@@ -216,6 +284,19 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
                 </FormItem>
               )}
             />
+
+            <FormControl>
+                <Input
+                    ref={ocrInputRef}
+                    id="ocr-image-input"
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleOcrImageChange}
+                    className="hidden"
+                />
+            </FormControl>
+
 
             <FormItem>
               <FormLabel>Upload Image (Optional)</FormLabel>
@@ -272,7 +353,7 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
               )}
             />
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="w-full" disabled={isSubmitting || ocrLoading}>
               {isSubmitting ? 'Sending...' : 'Send Shoutout'}
               <Send className="ml-2 h-4 w-4" />
             </Button>
