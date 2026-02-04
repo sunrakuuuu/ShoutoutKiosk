@@ -7,6 +7,9 @@ import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import FloatingHearts from './FloatingHearts';
 import SparkleRain from './SparkleRain';
+import ReactionAnimation from './ReactionAnimation';
+
+type ReactionType = 'heart' | 'flame' | 'chocolate';
 
 type ShoutoutDisplayProps = {
   shoutouts: Shoutout[];
@@ -52,6 +55,7 @@ const MainShoutoutCard = ({ shoutout, frame }: { shoutout: Shoutout; frame: Shou
 
 export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisplayProps) {
   const [currentIndex, setCurrentIndex] = React.useState(0);
+  const [reactionTrigger, setReactionTrigger] = React.useState<{ type: ReactionType; count: number } | null>(null);
   const sortedShoutouts = shoutouts.slice().sort((a, b) => b.createdAt - a.createdAt);
 
   const handleNext = React.useCallback(() => {
@@ -65,6 +69,10 @@ export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisp
         setCurrentIndex((prev) => (prev - 1 + sortedShoutouts.length) % sortedShoutouts.length);
     }
   }, [sortedShoutouts.length]);
+
+  const handleReaction = (type: ReactionType) => {
+    setReactionTrigger({ type, count: Date.now() });
+  };
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -111,6 +119,8 @@ export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisp
     <div className="relative min-h-screen w-full flex flex-col justify-start items-center px-4 md:px-12 pt-12 pb-24 overflow-hidden">
       <FloatingHearts />
       <SparkleRain />
+      <ReactionAnimation trigger={reactionTrigger} />
+
       {sortedShoutouts.length > 1 && (
         <>
           <button onClick={handlePrev} className="absolute left-4 md:left-16 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-card/50 text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors">
@@ -142,12 +152,18 @@ export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisp
       </AnimatePresence>
         
       {sortedShoutouts.length > 0 && (
-        <div className="fixed bottom-6 inset-x-0 flex justify-center items-center">
-            <div className="px-4 py-1 rounded-full bg-card/50 text-foreground font-mono text-sm">
+        <div className="fixed bottom-6 inset-x-0 flex justify-center items-center z-10">
+            <div className="px-4 py-1 rounded-full bg-card/50 text-foreground font-mono text-sm backdrop-blur-sm">
                 {currentIndex + 1} / {sortedShoutouts.length}
             </div>
         </div>
       )}
+
+      <div className="fixed bottom-[70px] md:bottom-6 right-4 md:right-6 flex flex-col md:flex-row gap-3 z-20">
+        <button onClick={() => handleReaction('heart')} className="p-3 rounded-full bg-card/60 backdrop-blur-md text-2xl hover:bg-primary/90 transition-transform hover:scale-110 shadow-lg">❤️</button>
+        <button onClick={() => handleReaction('flame')} className="p-3 rounded-full bg-card/60 backdrop-blur-md text-2xl hover:bg-primary/90 transition-transform hover:scale-110 shadow-lg">🔥</button>
+        <button onClick={() => handleReaction('chocolate')} className="p-3 rounded-full bg-card/60 backdrop-blur-md text-2xl hover:bg-primary/90 transition-transform hover:scale-110 shadow-lg">🍫</button>
+      </div>
 
       <div className="fixed bottom-6 left-12 hidden md:flex">
           <div className="flex items-center gap-4 text-primary/30 font-mono text-xs">

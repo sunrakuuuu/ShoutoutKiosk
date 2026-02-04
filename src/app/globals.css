@@ -134,12 +134,27 @@
     }
   }
 
+  @keyframes reaction-float {
+    from {
+      transform: translateY(0) rotate(0deg);
+      opacity: 0.9;
+    }
+    to {
+      transform: translateY(-110vh) rotate(720deg);
+      opacity: 0;
+    }
+  }
+
   .animate-enter {
     animation: enter 0.5s ease-out forwards;
   }
 
   .animate-float {
     animation: float linear infinite;
+  }
+
+  .animate-reaction-float {
+    animation: reaction-float linear forwards;
   }
 
   .sparkle {
