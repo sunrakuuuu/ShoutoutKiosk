@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { frames } from '@/lib/frames';
 import { Shoutout } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
+import NextImage from 'next/image';
 import { Camera, Heart, Code, CircuitBoard, Send, X, WandSparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { stylizeMessage } from '@/ai/flows/stylize-message-flow';
@@ -54,6 +54,19 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
       frame: 'heart',
     },
   });
+
+  // Listen for OCR progress events to update state safely
+  useEffect(() => {
+    const handleOcrProgress = (event: Event) => {
+      const customEvent = event as CustomEvent<string>;
+      setOcrStatus(customEvent.detail);
+    };
+
+    window.addEventListener('ocr-progress', handleOcrProgress);
+    return () => {
+      window.removeEventListener('ocr-progress', handleOcrProgress);
+    };
+  }, []);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -138,13 +151,19 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
     setOcrStatus('Initializing scanner...');
 
     const worker = await createWorker({
+      // The logger function now dispatches a custom event instead of
+      // directly calling the state setter. This avoids the DataCloneError.
       logger: (m) => {
+        let statusText = '';
         if (m.status === 'recognizing text') {
-          setOcrStatus(`Scanning: ${Math.round(m.progress * 100)}%`);
+          statusText = `Scanning: ${Math.round(m.progress * 100)}%`;
         } else if (m.status === 'loading tesseract core') {
-            setOcrStatus('Loading engine...');
+          statusText = 'Loading engine...';
         } else if (m.status === 'loading language model') {
-            setOcrStatus('Loading language...');
+          statusText = 'Loading language...';
+        }
+        if (statusText) {
+          window.dispatchEvent(new CustomEvent('ocr-progress', { detail: statusText }));
         }
       },
     });
@@ -336,7 +355,7 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
               </FormControl>
               {imagePreview && (
                 <div className="relative mt-4 w-full h-48 rounded-md overflow-hidden border">
-                  <Image
+                  <NextImage
                     src={imagePreview}
                     alt="Image preview"
                     fill
