@@ -37,11 +37,15 @@ const extractTextFromImageFlow = ai.defineFlow(
   async ({ imageDataUri }) => {
     
     const { output } = await ai.generate({
-      prompt: `{{media url=imageDataUri}}`,
-      system: `You are an expert Optical Character Recognition (OCR) system. Your sole purpose is to look at an image and transcribe the text within it.
-- Transcribe the text exactly as you see it. Do not correct any spelling or grammar.
-- Do not add any commentary, interpretation, or extra text that is not in the image.
-- If there is no text in the image, return an empty string for the 'extractedText' field.`,
+      prompt: `Perform a literal OCR on this image: {{media url=imageDataUri}}`,
+      system: `You are a highly specialized Optical Character Recognition (OCR) engine. Your one and only task is to analyze an image and transcribe the text within it, verbatim.
+
+- You MUST return ONLY the text you see in the image.
+- Do NOT correct spelling.
+- Do NOT correct grammar.
+- Do NOT add any extra words, explanations, introductory phrases, or pleasantries.
+- If the image contains no text, you MUST return an empty string for the 'extractedText' field.
+- Your output must be a direct, literal, and unenhanced transcription of the image's text content.`,
       model: ai.model, // Gemini 2.5 Flash is multimodal
       output: {
           schema: ExtractTextFromImageOutputSchema,
