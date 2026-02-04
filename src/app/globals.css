@@ -98,10 +98,6 @@
   .text-label {
     @apply text-primary font-code uppercase text-xs tracking-[0.15em];
   }
-  
-  .binary-rain {
-    background-image: linear-gradient(hsl(var(--background) / 0.9), hsl(var(--background) / 0.9)), url(https://lh3.googleusercontent.com/aida-public/AB6AXuBLfLES1d9CatBhQmiwMUnsExpTHA1BEJzL-9xn8qlfcDc36A33o6TOhBLQzsiWYPzeH8Yai1xdsKD7d0Tdq7rLZueUjAA0D_fC7vb6NS4FeLYvHgQgLYvaQA8B89zYXcuWf8EGBoQV3pNBSGNp9tqqL9qBMe8XUY0rxKgy_5QseijKmqdNdMjoMwtui1ZZYwlYCUfg33ZoIjKqD7tMPb5xCfLc3x9yFGz_SD-P6io7hjFNhReBj4utuhYtJ_Xf5BWTGp7sQn_W0arp)
-  }
 }
 
 @layer utilities {
@@ -115,9 +111,48 @@
       transform: scale(1) translateY(0);
     }
   }
+
+  @keyframes float {
+    from {
+      transform: translateY(0) rotate(0deg);
+      opacity: 1;
+    }
+    to {
+      transform: translateY(-120vh) rotate(360deg);
+      opacity: 0;
+    }
+  }
+
+  @keyframes sparkle-fall {
+    from {
+      transform: translateY(-20px);
+      opacity: 1;
+    }
+    to {
+      transform: translateY(110vh);
+      opacity: 0;
+    }
+  }
+
   .animate-enter {
     animation: enter 0.5s ease-out forwards;
   }
+
+  .animate-float {
+    animation: float linear infinite;
+  }
+
+  .sparkle {
+    position: absolute;
+    top: -20px;
+    width: 2px;
+    height: 2px;
+    background: hsl(var(--accent));
+    border-radius: 50%;
+    box-shadow: 0 0 5px hsl(var(--accent) / 0.8), 0 0 10px hsl(var(--accent) / 0.5);
+    animation: sparkle-fall linear infinite;
+  }
+
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }

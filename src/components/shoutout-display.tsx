@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { frames } from '@/lib/frames';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import FloatingHearts from './FloatingHearts';
+import SparkleRain from './SparkleRain';
 
 type ShoutoutDisplayProps = {
   shoutouts: Shoutout[];
@@ -82,7 +84,8 @@ export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisp
 
   if (!initialized) {
     return (
-        <div className="relative min-h-screen w-full flex flex-col justify-center items-center binary-rain">
+        <div className="relative min-h-screen w-full flex flex-col justify-center items-center">
+            <SparkleRain />
             <div className="text-primary animate-pulse font-mono text-lg">Loading Transmissions...</div>
         </div>
     );
@@ -90,7 +93,8 @@ export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisp
   
   if (sortedShoutouts.length === 0) {
     return (
-      <div className="relative min-h-screen w-full flex flex-col justify-center items-center binary-rain">
+      <div className="relative min-h-screen w-full flex flex-col justify-center items-center">
+        <SparkleRain />
         <div className="flex flex-col items-center justify-center text-center font-mono">
           <span className="material-symbols-outlined text-primary/50 !text-7xl mb-6">portable_wifi_off</span>
           <h3 className="text-2xl font-semibold font-display">Awaiting Transmissions...</h3>
@@ -104,7 +108,9 @@ export default function ShoutoutDisplay({ shoutouts, initialized }: ShoutoutDisp
   const currentFrame = frames.find((f) => f.id === currentShoutout?.frame);
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col justify-start items-center binary-rain px-4 md:px-12 pt-8 sm:pt-12 overflow-hidden">
+    <div className="relative min-h-screen w-full flex flex-col justify-start items-center px-4 md:px-12 pt-12 pb-24 overflow-hidden">
+      <FloatingHearts />
+      <SparkleRain />
       {sortedShoutouts.length > 1 && (
         <>
           <button onClick={handlePrev} className="absolute left-4 md:left-16 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-card/50 text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors">
