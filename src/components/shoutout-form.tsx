@@ -16,7 +16,7 @@ import Image from 'next/image';
 import { Camera, Heart, Code, CircuitBoard, Send, ImagePlus, X, WandSparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { stylizeMessage } from '@/ai/flows/stylize-message-flow';
-import { extractTextFromImage } from '@/ai/flows/extract-text-from-image-flow';
+import { createWorker } from 'tesseract.js';
 
 const formSchema = z.object({
   sender: z.string().min(1, 'Sender name is required.'),
@@ -41,6 +41,7 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrStatus, setOcrStatus] = useState<string | null>(null);
   const ocrInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -120,51 +121,65 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
     ocrInputRef.current?.click();
   };
 
-  const handleOcrImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleOcrImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 4 * 1024 * 1024) { // 4MB limit for Gemini
-        toast({
-          title: 'Image too large',
-          description: 'Please use an image smaller than 4MB for scanning.',
-          variant: 'destructive',
-        });
-        return;
-      }
-      setOcrLoading(true);
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        try {
-          const imageDataUri = reader.result as string;
-          const result = await extractTextFromImage({ imageDataUri });
-          if (result?.extractedText) {
-            const currentMessage = form.getValues('message');
-            const newMessage = currentMessage ? `${currentMessage}\n${result.extractedText}` : result.extractedText;
-            form.setValue('message', newMessage, { shouldValidate: true });
-            toast({
-                title: 'Text Scanned!',
-                description: 'The message from your note has been added.',
-            });
-          } else {
-              toast({
-                title: 'No Text Found',
-                description: 'The AI could not find any text in the image.',
-              });
-          }
-        } catch (error) {
-          console.error('Failed to scan message:', error);
-          toast({
-            title: 'Scan Error',
-            description: 'The AI failed to scan your note. Please try again.',
-            variant: 'destructive',
-          });
-        } finally {
-          setOcrLoading(false);
-          // Reset file input value
-          if (e.target) e.target.value = '';
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      toast({
+        title: 'Image too large',
+        description: 'Please use an image smaller than 5MB for scanning.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setOcrLoading(true);
+    setOcrStatus('Initializing...');
+
+    const worker = await createWorker({
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          const progress = (m.progress * 100).toFixed(0);
+          setOcrStatus(`Recognizing: ${progress}%`);
+        } else if (m.status.includes('loading')) {
+           setOcrStatus('Loading model...');
         }
-      };
-      reader.readAsDataURL(file);
+      },
+    });
+
+    try {
+      await worker.loadLanguage('eng');
+      await worker.initialize('eng');
+      const { data: { text } } = await worker.recognize(file);
+      
+      if (text) {
+        const currentMessage = form.getValues('message');
+        const newMessage = currentMessage ? `${currentMessage}\n${text}` : text;
+        form.setValue('message', newMessage, { shouldValidate: true });
+        toast({
+            title: 'Text Scanned!',
+            description: 'The message from your note has been added.',
+        });
+      } else {
+          toast({
+            title: 'No Text Found',
+            description: 'Could not find any text in the image.',
+          });
+      }
+    } catch (error) {
+      console.error('Failed to scan message with Tesseract:', error);
+      toast({
+        title: 'Scan Error',
+        description: 'Failed to scan your note. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      await worker.terminate();
+      setOcrLoading(false);
+      setOcrStatus(null);
+      // Reset file input value
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -249,7 +264,7 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
                         disabled={ocrLoading}
                         className="text-xs"
                     >
-                        {ocrLoading ? 'Scanning...' : 'Scan from Note'}
+                        {ocrLoading ? (ocrStatus || 'Scanning...') : 'Scan from Note'}
                         <Camera className="ml-2 h-3 w-3" />
                     </Button>
                   </div>
