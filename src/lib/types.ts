@@ -1,12 +1,12 @@
-export type Shoutout = {
+// src/lib/types.ts
+export interface Shoutout {
   id: string;
-  sender: string;
-  recipient: string;
+  senderName: string;
+  recipientName: string;
   message: string;
-  image: string | null; // base64 string
-  frame: string; // frame id
-  createdAt: number; // timestamp
-};
+  createdAt: number; // Unix timestamp
+  frame?: string; // Optional frame ID
+}
 
 export type ShoutoutFrame = {
   id: string;
