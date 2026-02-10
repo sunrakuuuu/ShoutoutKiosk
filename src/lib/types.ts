@@ -6,6 +6,7 @@ export interface Shoutout {
   message: string;
   createdAt: number; // Unix timestamp
   frame?: string; // Optional frame ID
+  image?: string; // Optional image URL
 }
 
 export type ShoutoutFrame = {

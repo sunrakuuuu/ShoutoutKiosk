@@ -12,6 +12,54 @@ export function useShoutouts() {
   const { toast } = useToast();
   const lastFetchRef = useRef<number>(0);
 
+  // FIFO Buffer: Remove oldest 5 shoutouts when count reaches 20
+  const enforceFIFOBuffer = useCallback(
+    async (currentShoutouts: Shoutout[]) => {
+      if (currentShoutouts.length >= 20) {
+        console.log(
+          `⚠️ FIFO Buffer triggered: ${currentShoutouts.length} shoutouts detected`,
+        );
+
+        // Get the oldest 5 shoutouts (last 5 in array since they're sorted newest first)
+        const oldestFive = currentShoutouts.slice(-5);
+        const oldestIds = oldestFive.map((s) => s.id);
+
+        console.log(`🗑️ Removing oldest 5 shoutouts:`, oldestIds);
+
+        try {
+          // Delete from Supabase
+          const { error } = await supabase
+            .from("shoutouts")
+            .delete()
+            .in("id", oldestIds);
+
+          if (error) {
+            console.error("❌ Error deleting oldest shoutouts:", error);
+            throw error;
+          }
+
+          // Update local state
+          const updatedShoutouts = currentShoutouts.filter(
+            (s) => !oldestIds.includes(s.id),
+          );
+          setShoutouts(updatedShoutouts);
+
+          console.log(
+            `✅ FIFO Buffer: Removed 5 oldest shoutouts. New count: ${updatedShoutouts.length}`,
+          );
+
+          toast({
+            title: "Buffer Cleaned",
+            description: "Removed oldest 5 shoutouts to maintain performance.",
+          });
+        } catch (error) {
+          console.error("❌ FIFO Buffer error:", error);
+        }
+      }
+    },
+    [toast],
+  );
+
   // Fetch shoutouts from Supabase
   const fetchShoutouts = useCallback(async () => {
     // Debounce: only fetch if 2+ seconds have passed since last fetch
@@ -46,10 +94,14 @@ export function useShoutouts() {
         message: item.message || "",
         createdAt: new Date(item.created_at).getTime(),
         frame: item.frame || undefined,
+        image: item.image || undefined,
       }));
 
       setShoutouts(transformedData);
       setInitialized(true);
+
+      // Enforce FIFO buffer
+      await enforceFIFOBuffer(transformedData);
     } catch (error: any) {
       console.error("❌ Error fetching shoutouts:", error);
       toast({
@@ -60,11 +112,16 @@ export function useShoutouts() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, enforceFIFOBuffer]);
 
   // In your useShoutouts.ts addShoutout function:
   const addShoutout = useCallback(
-    async (newShoutoutData: Omit<Shoutout, "id" | "createdAt">) => {
+    async (
+      newShoutoutData: Omit<Shoutout, "id" | "createdAt"> & {
+        sender?: string;
+        recipient?: string;
+      },
+    ) => {
       try {
         console.log("📤 Received data:", newShoutoutData);
 
@@ -125,6 +182,9 @@ export function useShoutouts() {
         // Update local state
         setShoutouts((prev) => [newShoutout, ...prev]);
 
+        // Enforce FIFO buffer after adding new shoutout
+        await enforceFIFOBuffer([newShoutout, ...shoutouts]);
+
         toast({
           title: "Success!",
           description: "Your shoutout has been posted! ❤️",
@@ -151,7 +211,7 @@ export function useShoutouts() {
         throw error;
       }
     },
-    [toast],
+    [toast, enforceFIFOBuffer, shoutouts],
   );
 
   // Delete shoutout from Supabase
