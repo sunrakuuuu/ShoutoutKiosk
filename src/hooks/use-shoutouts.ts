@@ -1,6 +1,6 @@
 // src/hooks/useShoutouts.ts
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Shoutout } from "@/lib/types";
 import { useToast } from "./use-toast";
 import { supabase } from "@/lib/supabase";
@@ -10,9 +10,18 @@ export function useShoutouts() {
   const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const lastFetchRef = useRef<number>(0);
 
   // Fetch shoutouts from Supabase
   const fetchShoutouts = useCallback(async () => {
+    // Debounce: only fetch if 2+ seconds have passed since last fetch
+    const now = Date.now();
+    if (now - lastFetchRef.current < 2000) {
+      console.log("⏸️  Debounced fetch (too soon)");
+      return;
+    }
+    lastFetchRef.current = now;
+
     try {
       setLoading(true);
       console.log("🔄 Fetching shoutouts from Supabase...");
@@ -151,9 +160,6 @@ export function useShoutouts() {
       try {
         console.log("🗑️ Deleting shoutout:", shoutoutId);
 
-        // Remove from local state first (optimistic update)
-        setShoutouts((prev) => prev.filter((s) => s.id !== shoutoutId));
-
         const { error } = await supabase
           .from("shoutouts")
           .delete()
@@ -161,10 +167,11 @@ export function useShoutouts() {
 
         if (error) {
           console.error("❌ Delete error:", error);
-          // Refetch to restore state if deletion failed
-          await fetchShoutouts();
           throw error;
         }
+
+        // Remove from local state
+        setShoutouts((prev) => prev.filter((s) => s.id !== shoutoutId));
 
         toast({
           title: "Shoutout Deleted",
@@ -175,13 +182,13 @@ export function useShoutouts() {
       } catch (error: any) {
         console.error("❌ Error deleting shoutout:", error);
         toast({
-          title: "Delete Failed",
-          description: error.message || "Failed to delete shoutout. Please try again.",
+          title: "Error",
+          description: "Failed to delete shoutout.",
           variant: "destructive",
         });
       }
     },
-    [toast, fetchShoutouts],
+    [toast],
   );
 
   // Initial load and real-time subscription
@@ -225,9 +232,10 @@ export function useShoutouts() {
     };
   }, [fetchShoutouts]);
 
-  // Auto-refresh shoutouts every 10 seconds
+  // Fallback: Auto-refresh every 10 seconds as a safety net
   useEffect(() => {
     const interval = setInterval(() => {
+      console.log("🔄 Polling fallback: Refreshing shoutouts");
       fetchShoutouts();
     }, 10000);
 

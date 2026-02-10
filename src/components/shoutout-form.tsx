@@ -1,31 +1,34 @@
-'use client';
-import { useState, useRef, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { frames } from '@/lib/frames';
-import { Shoutout } from '@/lib/types';
-import { useToast } from '@/hooks/use-toast';
-import NextImage from 'next/image';
+"use client";
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
 import {
-  Camera,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { frames } from "@/lib/frames";
+import { Shoutout } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
+import {
   Heart,
   Code,
   CircuitBoard,
   Send,
-  X,
   WandSparkles,
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { stylizeMessage } from "@/ai/flows/stylize-message-flow";
-import { createWorker } from "tesseract.js";
 
 const formSchema = z.object({
   sender: z.string().min(1, "Sender name is required."),
@@ -33,7 +36,7 @@ const formSchema = z.object({
   message: z
     .string()
     .min(1, "Message cannot be empty.")
-    .max(500, "Message is too long."),
+    .max(200, "Message must be 200 characters or less."),
   frame: z.string().min(1, "Please select a frame."),
 });
 
@@ -48,14 +51,9 @@ const frameIcons: { [key: string]: React.ReactNode } = {
 };
 
 export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiLoading, setAiLoading] = useState<string | null>(null);
-  const [ocrLoading, setOcrLoading] = useState(false);
-  const [ocrStatus, setOcrStatus] = useState("");
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const ocrInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -68,55 +66,19 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
     },
   });
 
-  // Listen for OCR progress events to update state safely
+  // Get current message for character count
+  const currentMessage = form.watch("message");
+  const charCount = currentMessage?.length || 0;
+  const maxChars = 200;
+  const isNearLimit = charCount > maxChars * 0.8; // 80% of limit
+
   useEffect(() => {
-    const handleOcrProgress = (event: Event) => {
-      const customEvent = event as CustomEvent<string>;
-      setOcrStatus(customEvent.detail);
-    };
-
-    window.addEventListener("ocr-progress", handleOcrProgress);
-
     // Check localStorage on component mount
     const submitted = localStorage.getItem("shoutoutFormSubmitted");
     if (submitted === "true") {
       setHasSubmitted(true);
     }
-
-    return () => {
-      window.removeEventListener("ocr-progress", handleOcrProgress);
-    };
   }, []);
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 1 * 1024 * 1024) {
-        // 1MB limit for shoutout image
-        toast({
-          title: "Image too large",
-          description: "Please upload an image smaller than 1MB.",
-          variant: "destructive",
-        });
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-        setImageBase64(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const clearImage = () => {
-    setImagePreview(null);
-    setImageBase64(null);
-    const fileInput = document.getElementById(
-      "shoutout-image",
-    ) as HTMLInputElement;
-    if (fileInput) fileInput.value = "";
-  };
 
   const handleStylize = async (style: "poetic" | "witty") => {
     const currentMessage = form.getValues("message");
@@ -134,13 +96,29 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
     try {
       const result = await stylizeMessage({ message: currentMessage, style });
       if (result?.stylizedMessage) {
-        form.setValue("message", result.stylizedMessage, {
-          shouldValidate: true,
-        });
-        toast({
-          title: "Message Stylized!",
-          description: `Your message has been made more ${style}.`,
-        });
+        // Check if stylized message exceeds 200 characters
+        if (result.stylizedMessage.length > maxChars) {
+          toast({
+            title: "Message Too Long",
+            description: `The AI-generated message exceeds 200 characters. Please edit it to fit the limit.`,
+            variant: "destructive",
+          });
+          form.setValue(
+            "message",
+            result.stylizedMessage.substring(0, maxChars),
+            {
+              shouldValidate: true,
+            },
+          );
+        } else {
+          form.setValue("message", result.stylizedMessage, {
+            shouldValidate: true,
+          });
+          toast({
+            title: "Message Stylized!",
+            description: `Your message has been made more ${style}.`,
+          });
+        }
       } else {
         throw new Error("No message returned");
       }
@@ -156,92 +134,6 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
     }
   };
 
-  const handleOcrScan = () => {
-    ocrInputRef.current?.click();
-  };
-
-  const handleOcrImageChange = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      // 5MB limit for Tesseract
-      toast({
-        title: "Image too large for scanning",
-        description: "Please use an image smaller than 5MB.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setOcrLoading(true);
-    setOcrStatus("Initializing scanner...");
-
-    const worker = await createWorker({
-      // The logger function now dispatches a custom event instead of
-      // directly calling the state setter. This avoids the DataCloneError.
-      logger: (m) => {
-        let statusText = "";
-        if (m.status === "recognizing text") {
-          statusText = `Scanning: ${Math.round(m.progress * 100)}%`;
-        } else if (m.status === "loading tesseract core") {
-          statusText = "Loading engine...";
-        } else if (m.status === "loading language model") {
-          statusText = "Loading language...";
-        }
-        if (statusText) {
-          window.dispatchEvent(
-            new CustomEvent("ocr-progress", { detail: statusText }),
-          );
-        }
-      },
-    });
-
-    try {
-      await worker.loadLanguage("eng");
-      await worker.initialize("eng");
-      const {
-        data: { text },
-      } = await worker.recognize(file);
-      await worker.terminate();
-
-      if (text) {
-        const currentMessage = form.getValues("message");
-        const separator =
-          currentMessage && !currentMessage.endsWith("\n") ? "\n" : "";
-        const newMessage = currentMessage
-          ? `${currentMessage}${separator}${text}`
-          : text;
-
-        form.setValue("message", newMessage, { shouldValidate: true });
-
-        toast({
-          title: "Text Scanned Successfully!",
-          description: `Text from your note has been added.`,
-        });
-      } else {
-        toast({
-          title: "No Text Found",
-          description: "Could not find any readable text in the image.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("OCR Error:", error);
-      toast({
-        title: "Scan Error",
-        description: "Failed to scan image. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setOcrLoading(false);
-      setOcrStatus("");
-      if (e.target) e.target.value = "";
-    }
-  };
-
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     try {
@@ -249,7 +141,7 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
         sender: values.sender,
         recipient: values.recipient,
         message: values.message,
-        image: imageBase64,
+        image: null, // No image upload anymore
         frame: values.frame,
       });
 
@@ -263,7 +155,6 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
       });
 
       form.reset();
-      clearImage();
     } catch (error) {
       console.error("Submit error:", error);
       toast({
@@ -332,77 +223,68 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <div className="flex justify-between items-center">
-                      <FormLabel>Your Message</FormLabel>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleOcrScan}
-                        disabled
-                        className="text-xs"
-                      >
-                        {ocrLoading ? ocrStatus : "Scan from Note"}
-                        <Camera className="ml-2 h-3 w-3" />
-                      </Button>
+                      <FormLabel>Your Message (Max 200 characters)</FormLabel>
                     </div>
                     <FormControl>
                       <Textarea
-                        placeholder="Type your Valentine's message here, or scan it from a note!"
+                        placeholder="Type your Valentine's message here (200 characters max)"
                         className="min-h-[120px]"
                         {...field}
                       />
                     </FormControl>
-                    <div className="flex items-center justify-end gap-2 pt-1"></div>
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleStylize("poetic")}
+                          disabled={!!aiLoading || !currentMessage}
+                          className="text-xs"
+                        >
+                          {aiLoading === "poetic" ? (
+                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                          ) : (
+                            <WandSparkles className="h-3 w-3 mr-1" />
+                          )}
+                          {aiLoading === "poetic"
+                            ? "Stylizing..."
+                            : "Make Poetic"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleStylize("witty")}
+                          disabled={!!aiLoading || !currentMessage}
+                          className="text-xs"
+                        >
+                          {aiLoading === "witty" ? (
+                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                          ) : (
+                            <WandSparkles className="h-3 w-3 mr-1" />
+                          )}
+                          {aiLoading === "witty"
+                            ? "Stylizing..."
+                            : "Make Witty"}
+                        </Button>
+                      </div>
+                      <div
+                        className={cn(
+                          "text-xs font-medium",
+                          isNearLimit
+                            ? "text-amber-600"
+                            : "text-muted-foreground",
+                          charCount > maxChars && "text-red-600",
+                        )}
+                      >
+                        {charCount}/{maxChars}
+                      </div>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
-              <FormControl>
-                <Input
-                  ref={ocrInputRef}
-                  id="ocr-image-input"
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleOcrImageChange}
-                  className="hidden"
-                />
-              </FormControl>
-
-              <FormItem>
-                <FormLabel>Upload Image (Optional)</FormLabel>
-                <FormControl>
-                  <Input
-                    id="shoutout-image"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="file:text-primary"
-                    disabled
-                  />
-                </FormControl>
-                {imagePreview && (
-                  <div className="relative mt-4 w-full h-48 rounded-md overflow-hidden border">
-                    <NextImage
-                      src={imagePreview}
-                      alt="Image preview"
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, 50vw"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2 h-8 w-8 rounded-full"
-                      onClick={clearImage}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </FormItem>
 
               <FormField
                 control={form.control}
@@ -415,7 +297,6 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
                         onValueChange={field.onChange}
                         defaultValue={field.value}
                         className="grid grid-cols-3 gap-4"
-                        disabled
                       >
                         {frames.map((frame) => (
                           <FormItem key={frame.id}>
@@ -447,6 +328,13 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
                   </FormItem>
                 )}
               />
+
+              <div className="text-xs text-muted-foreground py-2 border-t border-border">
+                <p>Note: Messages are limited to 200 characters maximum.</p>
+                <p className="mt-1">
+                  Images and scanning features are temporarily disabled.
+                </p>
+              </div>
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting ? "Sending..." : "Send Shoutout"}
