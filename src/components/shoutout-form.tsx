@@ -74,6 +74,95 @@ const frameIcons: { [key: string]: React.ReactNode } = {
   circuit: <CircuitBoard className="w-8 h-8 text-accent" />,
 };
 
+// Better fingerprinting that works across incognito
+const generateFingerprint = async (): Promise<string> => {
+  const components = [];
+
+  // Screen properties
+  components.push(
+    `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`,
+  );
+
+  // Timezone
+  components.push(Intl.DateTimeFormat().resolvedOptions().timeZone);
+
+  // Language
+  components.push(navigator.language);
+
+  // Platform
+  components.push(navigator.platform);
+
+  // Hardware concurrency (CPU cores)
+  components.push(navigator.hardwareConcurrency || "unknown");
+
+  // Device memory (GB)
+  components.push((navigator as any).deviceMemory || "unknown");
+
+  // Touch support
+  components.push("ontouchstart" in window ? "touch" : "no-touch");
+
+  // Color scheme preference
+  const darkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  components.push(darkMode ? "dark" : "light");
+
+  // WebGL renderer (this is really good for fingerprinting)
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl");
+    if (gl) {
+      const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
+      if (debugInfo) {
+        const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+        components.push(renderer);
+      }
+    }
+  } catch (e) {
+    // Ignore errors
+  }
+
+  // Simple hash function
+  let hash = 0;
+  const str = components.join("|");
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash;
+  }
+
+  return hash.toString();
+};
+
+// Store in localStorage instead of sessionStorage (persists across incognito windows)
+const hasSubmittedInSession = async (): Promise<boolean> => {
+  if (typeof window === "undefined") return false;
+
+  const fingerprint = await generateFingerprint();
+  const storageKey = `shoutout_submitted_${fingerprint}`;
+  const submitted = localStorage.getItem(storageKey);
+  const timestamp = localStorage.getItem(`${storageKey}_timestamp`);
+
+  // Expire after 24 hours
+  if (timestamp) {
+    const hoursSince = (Date.now() - parseInt(timestamp)) / (1000 * 60 * 60);
+    if (hoursSince > 24) {
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem(`${storageKey}_timestamp`);
+      return false;
+    }
+  }
+
+  return submitted === "true";
+};
+
+const markSubmittedInSession = async () => {
+  if (typeof window === "undefined") return;
+
+  const fingerprint = await generateFingerprint();
+  const storageKey = `shoutout_submitted_${fingerprint}`;
+  localStorage.setItem(storageKey, "true");
+  localStorage.setItem(`${storageKey}_timestamp`, Date.now().toString());
+};
+
 export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiLoading, setAiLoading] = useState<string | null>(null);
@@ -84,6 +173,7 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
     reason?: string;
     warning?: boolean;
   } | null>(null);
+  const [isChecking, setIsChecking] = useState(true);
 
   const messageDebounceRef = useRef<NodeJS.Timeout>();
   const { toast } = useToast();
@@ -106,6 +196,18 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
   const maxChars = 200;
   const isNearLimit = charCount > maxChars * 0.8;
 
+  // Check if user has already submitted
+  useEffect(() => {
+    const checkSubmission = async () => {
+      setIsChecking(true);
+      const submitted = await hasSubmittedInSession();
+      setHasSubmitted(submitted);
+      setIsChecking(false);
+    };
+
+    checkSubmission();
+  }, []);
+
   // Real-time message moderation
   useEffect(() => {
     if (messageDebounceRef.current) {
@@ -124,7 +226,7 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
         } else {
           setMessageWarning(null);
         }
-      }, 500); // Debounce for 500ms
+      }, 500);
     }
 
     return () => {
@@ -160,13 +262,6 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
     checkNames();
   }, [currentSender, currentRecipient, form]);
 
-  useEffect(() => {
-    const submitted = localStorage.getItem("shoutoutFormSubmitted");
-    if (submitted === "true") {
-      setHasSubmitted(true);
-    }
-  }, []);
-
   const handleStylize = async (style: "poetic" | "witty") => {
     const currentMessage = form.getValues("message");
     if (!currentMessage) {
@@ -183,7 +278,6 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
     try {
       const result = await stylizeMessage({ message: currentMessage, style });
       if (result?.stylizedMessage) {
-        // Check if stylized message exceeds 200 characters
         if (result.stylizedMessage.length > maxChars) {
           toast({
             title: "Message Too Long",
@@ -196,7 +290,6 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
             { shouldValidate: true },
           );
         } else {
-          // Check moderation on AI-generated content
           const moderationResult = moderateMessage(result.stylizedMessage);
           if (!moderationResult.isAllowed) {
             toast({
@@ -231,6 +324,17 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    // Double-check if already submitted
+    if (await hasSubmittedInSession()) {
+      toast({
+        title: "Already Submitted",
+        description: "You can only send one shoutout per 24 hours.",
+        variant: "destructive",
+      });
+      setHasSubmitted(true);
+      return;
+    }
+
     // Final moderation check
     const finalCheck = moderateMessage(values.message);
     if (!finalCheck.isAllowed) {
@@ -254,7 +358,8 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
         frame: values.frame,
       });
 
-      localStorage.setItem("shoutoutFormSubmitted", "true");
+      // Mark as submitted with fingerprint
+      await markSubmittedInSession();
       setHasSubmitted(true);
 
       toast({
@@ -276,23 +381,56 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
     }
   };
 
+  if (isChecking) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-headline text-2xl">
+            Spread Positivity! 💕
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-headline text-2xl">
-          {hasSubmitted ? "Shoutout Already Sent" : "Spread Positivity! 💕"}
+        <CardTitle className="font-headline text-2xl text-center">
+          {hasSubmitted
+            ? "✨ You've Already Shared Love! ✨"
+            : "Spread Positivity! 💕"}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {hasSubmitted ? (
-          <div className="text-center py-8">
-            <p className="text-lg text-muted-foreground mb-4">
-              Thanks for spreading positivity! You can only send one message per
-              session.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Check the feed below to see your uplifting message displayed.
-            </p>
+          <div className="text-center py-8 space-y-6">
+            <div className="flex justify-center">
+              <div className="bg-primary/10 p-4 rounded-full">
+                <Heart className="w-12 h-12 text-primary fill-primary" />
+              </div>
+            </div>
+            <div>
+              <p className="text-lg text-foreground mb-2 font-semibold">
+                Thanks for spreading positivity!
+              </p>
+              <p className="text-muted-foreground">
+                You've already sent your shoutout for today. Check the feed
+                below to see your uplifting message displayed.
+              </p>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-left">
+              <p className="text-sm text-amber-800">
+                <span className="font-medium">💡 Note:</span> You can send one
+                message every 24 hours. This helps keep the shoutout feed
+                balanced and positive for everyone.
+              </p>
+            </div>
           </div>
         ) : (
           <Form {...form}>
@@ -514,6 +652,9 @@ export default function ShoutoutForm({ onAddShoutout }: ShoutoutFormProps) {
                   <li>No bullying, harassment, or hate speech</li>
                   <li>Respect everyone's identity and feelings</li>
                   <li>Spread love and encouragement ❤️</li>
+                  <li className="font-medium text-primary">
+                    One message per 24 hours (device-based)
+                  </li>
                 </ul>
               </div>
 

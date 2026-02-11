@@ -27,7 +27,6 @@ const MainShoutoutCard = ({
     shoutout.image ||
     "https://lh3.googleusercontent.com/aida-public/AB6AXuCZCAL9woq7nJGc8C4QG3Td0rcexod38wbfCj8bpe_X1w-P52NufLP5z0DzS2WqoKJBpYgnJWvYGoSf6d3jwqAIhT5MRnILvF1YHRJO3N1eN-TyNY4jgLE8awVBX7PuRiDNFsiHjhSa_hU1VzVIx6nqGrIPpjIG1WwoBRJ4BEn0cmPuvb02SArHWfZ9nuurDWUGJABPLs7MFnT5bVR0chL5BzNMhV-oI0hM1-QuSjIgraV3glFeHZAlxa4zyV8h3H0oUkhVTxKWWX_x";
 
-  // Calculate character count for display
   const charCount = shoutout.message.length;
 
   return (
@@ -38,7 +37,6 @@ const MainShoutoutCard = ({
       )}
     >
       <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center">
-        {/* Image Section */}
         <div className="w-full md:w-1/2">
           <div
             className="aspect-square bg-center bg-no-repeat bg-cover rounded-lg border-2 border-primary/30 min-h-[250px] md:min-h-0 w-full"
@@ -47,9 +45,7 @@ const MainShoutoutCard = ({
           />
         </div>
 
-        {/* Content Section */}
         <div className="w-full md:w-1/2 flex flex-col gap-4 md:gap-6">
-          {/* Sender Section */}
           <div className="space-y-1">
             <p className="text-primary/70 font-mono text-xs md:text-sm uppercase tracking-tighter">
               &lt;Sender&gt;
@@ -59,7 +55,6 @@ const MainShoutoutCard = ({
             </p>
           </div>
 
-          {/* Recipient Section */}
           <div className="space-y-1">
             <p className="text-primary/70 font-mono text-xs md:text-sm uppercase tracking-tighter">
               &lt;Recipient&gt;
@@ -69,7 +64,6 @@ const MainShoutoutCard = ({
             </p>
           </div>
 
-          {/* Message Section */}
           <div className="mt-2 md:mt-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-primary/60 font-mono text-xs uppercase tracking-wider">
@@ -81,19 +75,15 @@ const MainShoutoutCard = ({
             </div>
 
             <div className="p-4 md:p-5 border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent rounded-lg relative overflow-hidden">
-              {/* Message Background Pattern */}
               <div className="absolute inset-0 opacity-5 pointer-events-none">
                 <div className="w-full h-full bg-[radial-gradient(circle_at_1px_1px,rgba(120,119,198,0.2)_1px,transparent_0)] bg-[length:20px_20px]"></div>
               </div>
-
-              {/* Message Text */}
               <p className="text-foreground font-mono leading-relaxed md:leading-snug italic relative z-10 break-words text-base md:text-lg min-h-[100px] md:min-h-[120px] flex items-center">
                 "{shoutout.message}"
               </p>
             </div>
           </div>
 
-          {/* Status Indicator */}
           <div className="flex justify-between items-center pt-2 md:pt-4">
             <div className="flex items-center gap-2 text-primary font-mono text-xs">
               <div className="flex items-center gap-1">
@@ -117,30 +107,80 @@ export default function ShoutoutDisplay({
   shoutouts,
   initialized,
 }: ShoutoutDisplayProps) {
+  const [displayShoutouts, setDisplayShoutouts] = React.useState<Shoutout[]>(
+    [],
+  );
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [reactionTrigger, setReactionTrigger] = React.useState<{
     type: ReactionType;
     count: number;
   } | null>(null);
   const [isPaused, setIsPaused] = React.useState(false);
+  const [pendingShoutout, setPendingShoutout] = React.useState<Shoutout | null>(
+    null,
+  );
 
-  const sortedShoutouts = shoutouts
-    .slice()
-    .sort((a, b) => b.createdAt - a.createdAt);
+  // Initialize display shoutouts
+  React.useEffect(() => {
+    if (shoutouts.length > 0) {
+      const sorted = shoutouts
+        .slice()
+        .sort((a, b) => b.createdAt - a.createdAt);
+      setDisplayShoutouts(sorted);
+      if (currentIndex === 0 && displayShoutouts.length === 0) {
+        setCurrentIndex(0);
+      }
+    }
+  }, [shoutouts]);
+
+  // Detect new shoutouts
+  React.useEffect(() => {
+    if (shoutouts.length > displayShoutouts.length) {
+      const newOnes = shoutouts.filter(
+        (shoutout) => !displayShoutouts.some((d) => d.id === shoutout.id),
+      );
+
+      if (newOnes.length > 0) {
+        // Get the newest one
+        const newest = newOnes.sort((a, b) => b.createdAt - a.createdAt)[0];
+        setPendingShoutout(newest);
+      }
+    }
+  }, [shoutouts, displayShoutouts]);
+
+  // Handle 10-second delay for new shoutout
+  React.useEffect(() => {
+    if (isPaused) return;
+    if (!pendingShoutout) return;
+
+    const timer = setTimeout(() => {
+      // Insert the new shoutout at the beginning
+      setDisplayShoutouts((prev) => [pendingShoutout!, ...prev]);
+
+      // Adjust current index: if we were at 0, stay at 0 (now showing new one)
+      // if we were at any other index, increase by 1 to keep showing same content
+      setCurrentIndex((prev) => (prev === 0 ? 0 : prev + 1));
+
+      setPendingShoutout(null);
+    }, 10000);
+
+    return () => clearTimeout(timer);
+  }, [pendingShoutout, isPaused]);
 
   const handleNext = React.useCallback(() => {
-    if (sortedShoutouts.length > 0) {
-      setCurrentIndex((prev) => (prev + 1) % sortedShoutouts.length);
+    if (displayShoutouts.length > 0) {
+      setCurrentIndex((prev) => (prev + 1) % displayShoutouts.length);
     }
-  }, [sortedShoutouts.length]);
+  }, [displayShoutouts.length]);
 
   const handlePrev = React.useCallback(() => {
-    if (sortedShoutouts.length > 0) {
+    if (displayShoutouts.length > 0) {
       setCurrentIndex(
-        (prev) => (prev - 1 + sortedShoutouts.length) % sortedShoutouts.length,
+        (prev) =>
+          (prev - 1 + displayShoutouts.length) % displayShoutouts.length,
       );
     }
-  }, [sortedShoutouts.length]);
+  }, [displayShoutouts.length]);
 
   const handleReaction = (type: ReactionType) => {
     setReactionTrigger({ type, count: Date.now() });
@@ -156,22 +196,20 @@ export default function ShoutoutDisplay({
     };
 
     window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleNext, handlePrev]);
 
-  // Auto-slide every 10 seconds when not paused
+  // Auto-slide every 10 seconds
   React.useEffect(() => {
     if (isPaused) return;
+    if (displayShoutouts.length === 0) return;
 
     const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % (sortedShoutouts.length || 1));
+      setCurrentIndex((prev) => (prev + 1) % displayShoutouts.length);
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [isPaused, sortedShoutouts.length]);
+  }, [isPaused, displayShoutouts.length]);
 
   if (!initialized) {
     return (
@@ -184,7 +222,7 @@ export default function ShoutoutDisplay({
     );
   }
 
-  if (sortedShoutouts.length === 0) {
+  if (displayShoutouts.length === 0) {
     return (
       <div className="relative min-h-screen w-full flex flex-col justify-center items-center p-4">
         <SparkleRain />
@@ -210,7 +248,7 @@ export default function ShoutoutDisplay({
     );
   }
 
-  const currentShoutout = sortedShoutouts[currentIndex];
+  const currentShoutout = displayShoutouts[currentIndex];
   const currentFrame = frames.find((f) => f.id === currentShoutout?.frame);
 
   return (
@@ -220,7 +258,7 @@ export default function ShoutoutDisplay({
       <ReactionAnimation trigger={reactionTrigger} />
 
       {/* Navigation Arrows */}
-      {sortedShoutouts.length > 1 && (
+      {displayShoutouts.length > 1 && (
         <>
           <button
             onClick={handlePrev}
@@ -270,7 +308,7 @@ export default function ShoutoutDisplay({
       </AnimatePresence>
 
       {/* Controls Bar */}
-      {sortedShoutouts.length > 0 && (
+      {displayShoutouts.length > 0 && (
         <div className="fixed bottom-4 md:bottom-6 inset-x-0 flex justify-center items-center z-10 px-4">
           <div className="px-4 md:px-5 py-2 md:py-2.5 rounded-xl bg-card/60 text-foreground font-mono text-xs md:text-sm backdrop-blur-xl border border-primary/10 flex items-center gap-4 md:gap-6 shadow-lg">
             <div className="flex items-center gap-3">
@@ -279,7 +317,7 @@ export default function ShoutoutDisplay({
               </span>
               <span className="text-muted-foreground">of</span>
               <span className="text-primary font-semibold">
-                {sortedShoutouts.length}
+                {displayShoutouts.length}
               </span>
             </div>
 
