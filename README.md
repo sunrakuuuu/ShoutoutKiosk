@@ -2,7 +2,7 @@
 
 Welcome to the CCS Valentine Shoutout application! This is a fun, interactive web app designed for a Valentine's Day event booth. It allows users to create and display personalized "shoutouts" to their friends, loved ones, and colleagues.
 
-## ✨ Features
+##  Features
 
 This application is packed with features to make sending and viewing shoutouts a delightful experience.
 
@@ -14,7 +14,7 @@ This application is packed with features to make sending and viewing shoutouts a
 - **Light & Dark Mode:** The application includes a theme toggle in the header, allowing users to switch between a light and a dark visual theme for their viewing comfort.
 - **Local Storage Persistence:** Shoutouts are saved directly in your browser's local storage. They are automatically cleared after one hour to ensure privacy and keep the feed fresh.
 
-## 🚀 Tech Stack
+##  Tech Stack
 
 This project is built with a modern and powerful set of technologies, perfect for creating fast and interactive web applications.
 
@@ -26,7 +26,7 @@ This project is built with a modern and powerful set of technologies, perfect fo
 - **Icons:** [**Lucide React**](https://lucide.dev/) - A clean and consistent icon library.
 - **State Management:** **React Hooks** (`useState`, `useEffect`) are used for managing the application's state. A custom hook (`useShoutouts`) was created to handle all the logic for adding, deleting, and storing shoutouts in the browser's local storage.
 
-## 📁 Project Structure & Flow
+##  Project Structure & Flow
 
 The application is organized into a few key directories:
 
@@ -65,4 +65,3 @@ To run this project locally, follow these steps:
 
 ---
 
-Enjoy the shoutout booth! ❤️
